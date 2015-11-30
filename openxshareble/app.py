@@ -4,6 +4,7 @@ from Adafruit_BluefruitLE.services import UART as OriginalUART
 # from ble import uart
 from ble.uart import UART
 import time
+import atexit
 import logging
 log = logging.getLogger(__name__)
 
@@ -11,7 +12,7 @@ class App (object):
   def __init__ (self, **kwds):
     self.disconnect_on_after = kwds.get('disconnect_on_after', False)
     pass
-  def setup_ble (self, clear_cached_data=True, disconnect_devices=True, scan_devices=True, connect=True):
+  def setup_ble (self):
     self.device = None
     self.ble = Adafruit_BluefruitLE.get_provider()
     # Initialize the BLE system.  MUST be called before other BLE calls!
@@ -36,14 +37,14 @@ class App (object):
         # Make sure device is disconnected on exit.
         if self.disconnect_on_after:
           self.device.disconnect()
-  def prolog (self, clear_cached_data=True, disconnect_devices=True, scan_devices=True):
+  def prolog (self, clear_cached_data=True, disconnect_devices=True, scan_devices=True, connect=True):
     # Clear any cached data because both bluez and CoreBluetooth have issues with
     # caching data and it going stale.
     if clear_cached_data:
       self.ble.clear_cached_data()
 
     # Get the first available BLE network adapter and make sure it's powered on.
-    self.adapter = ble.get_default_adapter()
+    self.adapter = self.ble.get_default_adapter()
     self.adapter.power_on()
     log.info('Using adapter: {0}'.format(self.adapter.name))
 
@@ -85,7 +86,10 @@ class App (object):
     # Use atexit.register to call the adapter stop_scan function before quiting.
     # This is good practice for calling cleanup code in this main function as
     # a try/finally block might not be called since this is a background thread.
-    atexit.register(self.adapter.stop_scan)
+    def maybe_stop ( ):
+      if self.adapter.is_scanning:
+        self.adapter.stop_scan( )
+    # atexit.register(maybe_stop)
     print('Searching for UART devices...')
     # print('Press Ctrl-C to quit (will take ~30 seconds on OSX).')
     # Enter a loop and print out whenever a new UART device is found.
@@ -106,12 +110,14 @@ class App (object):
         # Sleep for a second and see if new devices have appeared.
         time.sleep(1.0)
         now = time.time( )
+    self.adapter.stop_scan( )
     return known_uarts
 
   def epilog (self):
     # Make sure device is disconnected on exit.
-    if self.disconnect_on_after:
+    if self.disconnect_on_after and self.device.is_connected:
       self.device.disconnect()
+    # self.ble._gobject_mainloop.quit( )
     pass
   def set_handler (self, handler):
     self.handler = handler
