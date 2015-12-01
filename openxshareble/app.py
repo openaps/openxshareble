@@ -3,6 +3,7 @@ import Adafruit_BluefruitLE
 from Adafruit_BluefruitLE.services import UART as OriginalUART
 # from ble import uart
 from ble.uart import UART
+from ble.readdata import Device
 import time
 import atexit
 import logging
@@ -13,12 +14,13 @@ class App (object):
     self.disconnect_on_after = kwds.get('disconnect_on_after', False)
     pass
   def setup_ble (self):
-    self.device = None
+    self.remote = None
     self.ble = Adafruit_BluefruitLE.get_provider()
     # Initialize the BLE system.  MUST be called before other BLE calls!
     self.ble.initialize()
+    self.dexcom = None
     pass
-  def setup_dexcom (self):
+  def setup_dexcom (self, serial=None):
     # Once connected do everything else in a try/finally to make sure the device
     # is disconnected when done.
     try:
@@ -26,17 +28,21 @@ class App (object):
         # time out after 60 seconds (specify timeout_sec parameter to override).
         # print device._device.GattServices
         log.info('Discovering services...')
-        UART.discover(self.device)
+        UART.discover(self.remote)
 
         # Once service discovery is complete create an instance of the service
         # and start interacting with it.
-        self.uart = UART(device)
+        self.uart = UART(self.remote, SERIAL=serial)
 
-        self.dexcom = Device(uart)
+
+        self.dexcom = Device(self.uart)
+        print "DEXCOM", self.dexcom
+        if not self.dexcom:
+          self.dexcom = Device(self.uart)
     except:
         # Make sure device is disconnected on exit.
         if self.disconnect_on_after:
-          self.device.disconnect()
+          self.remote.disconnect()
   def prolog (self, clear_cached_data=True, disconnect_devices=True, scan_devices=True, connect=True):
     # Clear any cached data because both bluez and CoreBluetooth have issues with
     # caching data and it going stale.
@@ -61,24 +67,24 @@ class App (object):
           self.adapter.start_scan()
           # Search for the first UART device found (will time out after 60 seconds
           # but you can specify an optional timeout_sec parameter to change it).
-          self.device = UART.find_device()
-          if self.device is None:
+          self.remote = UART.find_device()
+          if self.remote is None:
               raise RuntimeError('Failed to find UART device!')
       finally:
           # Make sure scanning is stopped before exiting.
           self.adapter.stop_scan()
 
-    if connect and not self.device.is_connected:
+    if connect and not self.remote.is_connected:
       log.info('Connecting to device...')
-      self.device.connect()  # Will time out after 60 seconds, specify timeout_sec parameter
+      self.remote.connect()  # Will time out after 60 seconds, specify timeout_sec parameter
                         # to change the timeout.
-    log.info(self.device.name)
+    log.info(self.remote.name)
     # device._device.Pair( )
     log.info(self.ble._print_tree( ))
-    for service in self.device.list_services( ):
+    for service in self.remote.list_services( ):
       log.info(service, service.uuid)
     log.info("ADVERTISED")
-    log.info(self.device.advertised)
+    log.info(self.remote.advertised)
 
     pass
   def enumerate_dexcoms (self, timeout_secs=10):
@@ -115,8 +121,8 @@ class App (object):
 
   def epilog (self):
     # Make sure device is disconnected on exit.
-    if self.disconnect_on_after and self.device.is_connected:
-      self.device.disconnect()
+    if self.disconnect_on_after and self.remote.is_connected:
+      self.remote.disconnect()
     # self.ble._gobject_mainloop.quit( )
     pass
   def set_handler (self, handler):

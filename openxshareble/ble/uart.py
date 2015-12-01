@@ -3,6 +3,7 @@ import Adafruit_BluefruitLE
 from Adafruit_BluefruitLE.services import UART as OriginalUART
 import Queue
 import uuid
+import time
 from attrs import Attrs
 
 class ShareUART (OriginalUART):
@@ -67,7 +68,7 @@ class Share2UART (OriginalUART):
   def set_serial (self, SERIAL):
     self.serial = SERIAL
   def pair_auth_code (self, serial):
-      print "sending auth code"
+      print "sending auth code", serial
       self._auth = self._uart.find_characteristic(self.AUTH_UUID)
       print self._auth
       # self._auth.
