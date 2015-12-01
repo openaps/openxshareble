@@ -80,17 +80,9 @@ class DexcomTask (list_dexcom):
       __doc__ = usage.__doc__
       __name__ = usage.__name__
 
-      """
-      def __call__ (self, args, app):
-        return super(Klass, self).__call__(args, app)
-      """
       before_main = Klass.before_main
       after_main = Klass.after_main
       __call__ = Klass.__call__
-      """
-      def main (self, args, app):
-        return super(usage, self).main(args, app)
-      """
 
     EmulatedUsage.__name__ = usage.__name__
     return EmulatedUsage
