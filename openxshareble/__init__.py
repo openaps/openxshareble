@@ -3,6 +3,7 @@
 openxshareble
 """
 
+import os
 import app
 from openaps.uses.use import Use
 from openaps.uses.registry import Registry
@@ -30,7 +31,7 @@ def main (args, app):
 def set_config (args, device):
   return ""
 def display_device (device):
-  return ""
+  return "/%s" % device.get('serial')
 
 use = Registry( )
 get_uses = use.get_uses
@@ -40,7 +41,7 @@ class BLEUsage (Use, app.App):
   __init__ = Use.__init__
   def before_main (self, args, app):
 
-    serial = self.device.get('serial', '')
+    serial = self.device.get('serial', None)
     print "INIT WITH SERIAL", serial
     self.prolog( )
     self.setup_dexcom(serial=serial)
@@ -58,6 +59,35 @@ class BLEUsage (Use, app.App):
     return res
 
 @use( )
+class configure (Use):
+  DEXCOMRX=os.environ.get('DEXCOMRX', '')
+  __doc__ = """
+  Configure DEXCOMRX serial number.
+
+
+  Update the configuration so that your serial number is used to communicate
+  with your Dexcom G4 with Share.
+  Default: {DEXCOMRX}
+  """.format(DEXCOMRX=DEXCOMRX)
+
+  __init__ = Use.__init__
+  def configure_app (self, app, parser):
+    parser.add_argument('--serial', default=os.environ.get('DEXCOMRX', ''), help="DexcomRX Serial Number")
+  def get_params (self, args):
+    return dict(serial=args.serial)
+  def main (self, args, app):
+    results = dict(serial=self.device.get('serial', None))
+    if getattr(self.device, 'extra', None) and args.serial:
+      print "serial={serial}".format(**results)
+      print "saving %s" % args.serial
+      results.update(serial=args.serial)
+      self.device.extra.add_option('serial', results['serial'])
+      self.device.store(app.config)
+      app.config.save( )
+    return results
+
+
+@use( )
 class list_dexcom (BLEUsage):
   """
   Scan the environment looking for Dexcom devices.
@@ -65,6 +95,8 @@ class list_dexcom (BLEUsage):
 
   disconnect_on_after = True
   def main (self, args, app):
+    if not self.device.get('serial', None):
+      self.disconnect_on_after = False
     receivers = self.enumerate_dexcoms( )
     results = [ ]
     for device in receivers:
