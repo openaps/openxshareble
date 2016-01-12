@@ -1,6 +1,18 @@
 
 """
-openxshareble
+openxshareble - pure python driver to communicate with Dexcom G4+Share
+over ble.  Allows openaps to use ble to talk to Dexcom G4+Share.
+
+Examples:
+```
+# add vendor to openaps
+openaps vendor add openxshareble
+# create device called share to use the new vendor
+openaps device add share openxshareble
+# use it, eg:
+openaps use share iter_glucose 2
+```
+
 """
 
 import os
@@ -9,6 +21,8 @@ from openaps.uses.use import Use
 from openaps.uses.registry import Registry
 
 
+# we'll just replace all the original dexcom uses with new ones that swap
+# out how the data is transported.
 from openaps.vendors import dexcom
 
 def configure_use_app (app, parser):
@@ -33,28 +47,45 @@ def set_config (args, device):
 def display_device (device):
   return "/%s" % device.get('serial')
 
+# get a new usage registry for this module
 use = Registry( )
 get_uses = use.get_uses
 
 class BLEUsage (Use, app.App):
+  """ Generic subclass for a single openaps use to use Dexcom's ble
+  """
 
   __init__ = Use.__init__
   def before_main (self, args, app):
+    """
+    Get info such as serial from the device configuration.
+    """
 
     serial = self.device.get('serial', None)
     print "INIT WITH SERIAL", serial
+    # run prolog/setup
     self.prolog( )
+    # setup dexcom in particular, with configured serial number
     self.setup_dexcom(serial=serial)
   def after_main (self, args, app):
+    # run any after code
     self.epilog( )
   def __call__ (self, args, app):
+    """
+    Using BLE requires dropping into glib's threading mechanics.
+    """
     output = None
+    # setup glib threading, configure a main loop in glib/dbus
     self.setup_ble( )
     def run ( ):
+      """
+      Run the main logic of the app, capturing the output.
+      """
       self.before_main(args, app)
       output = self.main(args, app)
       self.after_main(args, app)
       return output
+    # run the configured glib loop.
     res = self.ble.run_mainloop_with(run, quit_with_loop=False)
     return res
 
@@ -91,6 +122,8 @@ class configure (Use):
 class list_dexcom (BLEUsage):
   """
   Scan the environment looking for Dexcom devices.
+  
+  Returns a list of scanned devices.
   """
 
   disconnect_on_after = True
@@ -106,8 +139,16 @@ class list_dexcom (BLEUsage):
     return results
 
 class DexcomTask (list_dexcom):
+  """
+  Generic utility to help swap original dexcom uses with new ones using
+  the logic from this module to set up the usage.
+  """
   @classmethod
   def Emulate (Klass, usage):
+    """
+    Given an original Use, an implementation, returns a transformed
+    Use class so that our logic controls how data gets transported.
+    """
     class EmulatedUsage (usage, Klass):
       __doc__ = usage.__doc__
       __name__ = usage.__name__
@@ -120,6 +161,9 @@ class DexcomTask (list_dexcom):
     return EmulatedUsage
 
 def transform (existing, Emulator, Original):
+  """
+  helper method to extract substitutes from original list of uses.
+  """
   results = dict( )
   for name, usage in existing.use.__USES__.items( ):
     if issubclass(usage, Original):

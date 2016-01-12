@@ -10,6 +10,13 @@ import logging
 log = logging.getLogger(__name__)
 
 class App (object):
+  """ A high level application object.
+
+  Any application needing to talk to Dexcom G4 + Share will need
+  to perform operations to setup the ble data transport.  This class
+  mixes the UART, ble code, and provides helpful prolog and epilog
+  routines that run before and after main, respectively.
+  """
   def __init__ (self, **kwds):
     self.disconnect_on_after = kwds.get('disconnect_on_after', False)
     pass
@@ -44,6 +51,9 @@ class App (object):
         if self.disconnect_on_after:
           self.remote.disconnect()
   def prolog (self, clear_cached_data=True, disconnect_devices=True, scan_devices=True, connect=True):
+    """
+    Things to do before running the main part of the application.
+    """
     # Clear any cached data because both bluez and CoreBluetooth have issues with
     # caching data and it going stale.
     if clear_cached_data:
@@ -120,6 +130,9 @@ class App (object):
     return known_uarts
 
   def epilog (self):
+    """
+    Things to do after running the main part of the application.
+    """
     # Make sure device is disconnected on exit.
     if self.disconnect_on_after and self.remote.is_connected:
       self.remote.disconnect()
@@ -131,4 +144,6 @@ class App (object):
     self.ble.run_mainloop_with(self.main)
     pass
   def main (self):
-    ""
+    """
+    Subclasses should replace this method.
+    """
