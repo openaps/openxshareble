@@ -43,6 +43,7 @@ class Share2UART (OriginalUART):
       print self._uart
       self._queue = Queue.Queue()
       r = device.is_paired
+      self.serial = kwds.pop('SERIAL', None)
       print "paired?", r
       if not r:
         print "pairing..."
@@ -55,6 +56,7 @@ class Share2UART (OriginalUART):
         print "finding service"
         self._uart = device.find_service(self.UART_SERVICE_UUID)
         print "SERVICE", self._uart
+        self.pair_auth_code(self.serial)
       for svc in device.list_services( ):
         print svc.uuid, svc.uuid == self.UART_SERVICE_UUID, svc, svc._service
         print "CHARACTERISTICS"
@@ -62,9 +64,7 @@ class Share2UART (OriginalUART):
         for chtr in chrsts:
           print chtr.uuid, chtr, chtr._characteristic
       # print device.list_services( )
-      self.serial = kwds.pop('SERIAL', None)
       self.setup_dexcom( )
-      self.pair_auth_code(self.serial)
   def set_serial (self, SERIAL):
     self.serial = SERIAL
   def pair_auth_code (self, serial):
@@ -74,15 +74,24 @@ class Share2UART (OriginalUART):
       # self._auth.
       msg = bytearray(serial + "000000")
       self._auth.write_value(str(msg))
+  def setup_dexcom_heartbeat (self):
+    self._heartbeat = self._uart.find_characteristic(self.HEARTBEAT_UUID)
+  def do_heartbeat (self):
+    if not self._heartbeat.notifying:
+      self._heartbeat.start_notify(self._heartbeat_tick)
   def setup_dexcom (self):
     self.remainder = bytearray( )
     self._tx = self._uart.find_characteristic(self.TX_CHAR_UUID)
     self._rx = self._uart.find_characteristic(self.RX_CHAR_UUID)
     # Use a queue to pass data received from the RX property change back to
     # the main thread in a thread-safe way.
+    self.setup_dexcom_heartbeat( )
+    self.do_heartbeat( )
+    """
     self._heartbeat = self._uart.find_characteristic(self.HEARTBEAT_UUID)
     if not self._heartbeat.notifying:
       self._heartbeat.start_notify(self._heartbeat_tick)
+    """
     self._char_rcv_data = self._uart.find_characteristic(self.RcveDataUUID)
     if self._rx.notifying:
       self._rx.stop_notify( )

@@ -25,9 +25,13 @@ class App (object):
     self.ble = Adafruit_BluefruitLE.get_provider()
     # Initialize the BLE system.  MUST be called before other BLE calls!
     self.ble.initialize()
+    # Get the first available BLE network adapter and make sure it's powered on.
+    self.adapter = self.ble.get_default_adapter()
+    self.adapter.power_on()
+    log.info('Using adapter: {0}'.format(self.adapter.name))
     self.dexcom = None
     pass
-  def setup_dexcom (self, serial=None):
+  def setup_dexcom (self, serial=None, mac=None):
     # Once connected do everything else in a try/finally to make sure the device
     # is disconnected when done.
     try:
@@ -50,7 +54,7 @@ class App (object):
         # Make sure device is disconnected on exit.
         if self.disconnect_on_after:
           self.remote.disconnect()
-  def prolog (self, clear_cached_data=True, disconnect_devices=True, scan_devices=True, connect=True):
+  def prolog (self, clear_cached_data=True, disconnect_devices=True, scan_devices=True, connect=True, mac=None):
     """
     Things to do before running the main part of the application.
     """
@@ -59,10 +63,6 @@ class App (object):
     if clear_cached_data:
       self.ble.clear_cached_data()
 
-    # Get the first available BLE network adapter and make sure it's powered on.
-    self.adapter = self.ble.get_default_adapter()
-    self.adapter.power_on()
-    log.info('Using adapter: {0}'.format(self.adapter.name))
 
     if disconnect_devices:
       # Disconnect any currently connected UART devices.  Good for cleaning up and
@@ -74,15 +74,19 @@ class App (object):
       # Scan for UART devices.
       log.info('Searching for UART device...')
       try:
-          self.adapter.start_scan()
-          # Search for the first UART device found (will time out after 60 seconds
-          # but you can specify an optional timeout_sec parameter to change it).
-          self.remote = UART.find_device()
+          if mac:
+            self.remote = self.select_mac(mac=mac)
+          else:
+            self.adapter.start_scan()
+            # Search for the first UART device found (will time out after 60 seconds
+            # but you can specify an optional timeout_sec parameter to change it).
+            self.remote = UART.find_device()
           if self.remote is None:
               raise RuntimeError('Failed to find UART device!')
       finally:
           # Make sure scanning is stopped before exiting.
-          self.adapter.stop_scan()
+          if self.adapter.is_scanning:
+            self.adapter.stop_scan()
 
     if connect and not self.remote.is_connected:
       log.info('Connecting to device...')
@@ -97,6 +101,10 @@ class App (object):
     log.info(self.remote.advertised)
 
     pass
+  def select_mac (self, mac=None, **kwds):
+    for device in self.enumerate_dexcoms(**kwds):
+      if str(device.id) == mac:
+        return device
   def enumerate_dexcoms (self, timeout_secs=10):
     self.adapter.start_scan()
     # Use atexit.register to call the adapter stop_scan function before quiting.

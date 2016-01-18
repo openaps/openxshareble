@@ -62,9 +62,9 @@ class BLEUsage (Use, app.App):
     """
 
     serial = self.device.get('serial', None)
-    print "INIT WITH SERIAL", serial
+    mac = self.device.get('mac', None)
     # run prolog/setup
-    self.prolog( )
+    self.prolog(mac=mac)
     # setup dexcom in particular, with configured serial number
     self.setup_dexcom(serial=serial)
   def after_main (self, args, app):
@@ -136,14 +136,6 @@ class configure (Use):
       self.device.store(app.config)
       app.config.save( )
     return results
-    if getattr(self.device, 'extra', None) and args.serial:
-      print "serial={serial}".format(**results)
-      print "saving %s" % args.serial
-      results.update(serial=args.serial)
-      self.device.extra.add_option('serial', results['serial'])
-      self.device.store(app.config)
-      app.config.save( )
-    return results
 
 
 @use( )
@@ -168,11 +160,12 @@ class list_dexcom (BLEUsage):
         , advertised=map(str, device.advertised)))
     return results
 
-class DexcomTask (list_dexcom):
+class DexcomTask (BLEUsage):
   """
   Generic utility to help swap original dexcom uses with new ones using
   the logic from this module to set up the usage.
   """
+  disconnect_on_after = True
   @classmethod
   def Emulate (Klass, usage):
     """
