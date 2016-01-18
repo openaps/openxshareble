@@ -103,11 +103,39 @@ class configure (Use):
 
   __init__ = Use.__init__
   def configure_app (self, app, parser):
-    parser.add_argument('--serial', default=os.environ.get('DEXCOMRX', ''), help="DexcomRX Serial Number")
+    parser.add_argument('--serial', metavar='DEXCOMRX', default=os.environ.get('DEXCOMRX', ''), help="DexcomRX Serial Number")
+    parser.add_argument('--mac', metavar='DEXCOMRX_MAC',
+      default=os.environ.get('DEXCOMRX_MAC', ''),
+      help="DexcomRX BLE MAC address")
   def get_params (self, args):
-    return dict(serial=args.serial)
+    conf = dict( )
+    if args.serial.startswith('SM') and len(args.serial) > 8:
+      conf.update(serial=args.serial)
+    else:
+      conf.update(serial=None)
+    if len(args.mac.split(':')) == 6:
+      conf.update(mac=args.mac)
+    else:
+      conf.update(mac=None)
+    return conf
   def main (self, args, app):
-    results = dict(serial=self.device.get('serial', None))
+    results = dict(serial=self.device.get('serial', None), mac=self.device.get('mac', None))
+    params = self.get_params(args)
+    dirty = False
+    for field in [ 'serial', 'mac' ]:
+      value = params.get(field)
+      if getattr(self.device, 'extra', None):
+        print "{field}={value}".format(field=field, value=results[field])
+        if value:
+          if value != results.get(field, None):
+            dirty = True
+            print "saving %s" % value
+            results[field] = value
+            self.device.extra.add_option(field, value)
+    if dirty:
+      self.device.store(app.config)
+      app.config.save( )
+    return results
     if getattr(self.device, 'extra', None) and args.serial:
       print "serial={serial}".format(**results)
       print "saving %s" % args.serial
@@ -126,7 +154,9 @@ class list_dexcom (BLEUsage):
   Returns a list of scanned devices.
   """
 
-  disconnect_on_after = True
+  disconnect_on_after = False
+  def before_main (self, args, app):
+    pass
   def main (self, args, app):
     if not self.device.get('serial', None):
       self.disconnect_on_after = False
