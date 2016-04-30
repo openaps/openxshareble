@@ -67,8 +67,8 @@ class BLEUsage (Use, app.App):
     logLevel = getattr(logging, self.device.get('logLevel', 'INFO'))
     for handler in log.handlers[:]:
       log.removeHandler(handler)
-    # log.addHandler(logging.handlers.SysLogHandler(address=logAddress))
-    # log.setLevel(logLevel)
+    log.addHandler(logging.handlers.SysLogHandler(address=logAddress))
+    log.setLevel(logLevel)
     serial = self.device.get('serial', None)
     mac = self.device.get('mac', None)
     # run prolog/setup
