@@ -15,6 +15,8 @@ openaps use share iter_glucose 2
 
 """
 
+import logging
+log = logging.getLogger(__name__)
 import os
 import app
 from openaps.uses.use import Use
@@ -61,6 +63,12 @@ class BLEUsage (Use, app.App):
     Get info such as serial from the device configuration.
     """
 
+    logAddress = self.device.get('logAddress', '/dev/log')
+    logLevel = getattr(logging, self.device.get('logLevel', 'INFO'))
+    for handler in log.handlers[:]:
+      log.removeHandler(handler)
+    # log.addHandler(logging.handlers.SysLogHandler(address=logAddress))
+    # log.setLevel(logLevel)
     serial = self.device.get('serial', None)
     mac = self.device.get('mac', None)
     # run prolog/setup
@@ -126,6 +134,7 @@ class configure (Use):
       value = params.get(field)
       if getattr(self.device, 'extra', None):
         print "{field}={value}".format(field=field, value=results[field])
+        log.info("{field}={value}".format(field=field, value=results[field]))
         if value:
           if value != results.get(field, None):
             dirty = True
