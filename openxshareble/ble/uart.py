@@ -5,6 +5,8 @@ import Queue
 import uuid
 import time
 from attrs import Attrs
+import logging
+log = logging.getLogger(__name__)
 
 class ShareUART (OriginalUART):
   ADVERTISED = [Attrs.CradleService]
@@ -39,38 +41,42 @@ class Share2UART (OriginalUART):
   def __init__(self, device, **kwds):
       """Initialize UART from provided bluez device."""
       # Find the UART service and characteristics associated with the device.
+      log = logging.getLogger(__name__)
+      self.log = log.getChild('uart')
       self._uart = device.find_service(self.UART_SERVICE_UUID)
-      print self._uart
+      log.info("UART %s", self._uart)
       self._queue = Queue.Queue()
       r = device.is_paired
       self.serial = kwds.pop('SERIAL', None)
-      print "paired?", r
+      log.info("paired? %s", r)
       if not r:
-        print "pairing..."
+        log.info("pairing...")
         # help(device._device)
         # help(device._device.Pair)
         device.pair( )
         # device._device.Pair( )
-        print "paired"
-        print device.advertised
-        print "finding service"
+        log.info("paired")
+        log.info(device.advertised)
+        log.info("finding service")
         self._uart = device.find_service(self.UART_SERVICE_UUID)
-        print "SERVICE", self._uart
+        log.info("SERVICE %s", self._uart)
         self.pair_auth_code(self.serial)
+      """
       for svc in device.list_services( ):
-        print svc.uuid, svc.uuid == self.UART_SERVICE_UUID, svc, svc._service
-        print "CHARACTERISTICS"
+        log.info("{0}, {1}, {2}, {3}", svc.uuid, svc.uuid == self.UART_SERVICE_UUID, svc, svc._service)
+        log.info("CHARACTERISTICS")
         chrsts = svc.list_characteristics( )
         for chtr in chrsts:
-          print chtr.uuid, chtr, chtr._characteristic
+          log.info("{0} {1} {2}", chtr.uuid, chtr, chtr._characteristic)
+      """
       # print device.list_services( )
       self.setup_dexcom( )
   def set_serial (self, SERIAL):
     self.serial = SERIAL
   def pair_auth_code (self, serial):
-      print "sending auth code", serial
+      self.log.info("sending auth code %s", serial)
       self._auth = self._uart.find_characteristic(self.AUTH_UUID)
-      print self._auth
+      self.log.info(self._auth)
       # self._auth.
       msg = bytearray(serial + "000000")
       self._auth.write_value(str(msg))
@@ -98,9 +104,9 @@ class Share2UART (OriginalUART):
     if not self._rx.notifying:
       self._rx.start_notify(self._rx_received)
   def _heartbeat_tick (self, data):
-    print "_heartbeat_tick", str(data).encode('hex')
+    self.log.info("_heartbeat_tick %s", str(data).encode('hex'))
   def _on_rcv (self, data):
-    print "_on_rcv", str(data).encode('hex')
+    self.log.info("_on_rcv %s", str(data).encode('hex'))
 
   def read (self, size=1, timeout_sec=None):
     spool = bytearray( )

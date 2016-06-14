@@ -47,7 +47,7 @@ class App (object):
 
 
         self.dexcom = Device(self.uart)
-        print "DEXCOM", self.dexcom
+        # log.info("DEXCOM", self.dexcom)
         if not self.dexcom:
           self.dexcom = Device(self.uart)
     except:
@@ -94,9 +94,9 @@ class App (object):
                         # to change the timeout.
     log.info(self.remote.name)
     # device._device.Pair( )
-    log.info(self.ble._print_tree( ))
+    # log.info(self.ble._print_tree( ))
     for service in self.remote.list_services( ):
-      log.info(service, service.uuid)
+      log.info("services: %s %s", service, service.uuid)
     log.info("ADVERTISED")
     log.info(self.remote.advertised)
 
@@ -114,7 +114,8 @@ class App (object):
       if self.adapter.is_scanning:
         self.adapter.stop_scan( )
     # atexit.register(maybe_stop)
-    print('Searching for UART devices...')
+    log.info('Searching for UART devices...')
+
     # print('Press Ctrl-C to quit (will take ~30 seconds on OSX).')
     # Enter a loop and print out whenever a new UART device is found.
     start = time.time( )
