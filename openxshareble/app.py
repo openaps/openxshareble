@@ -96,7 +96,7 @@ class App (object):
     # device._device.Pair( )
     # log.info(self.ble._print_tree( ))
     for service in self.remote.list_services( ):
-      log.info(service, service.uuid)
+      log.info("services: %s %s", service, service.uuid)
     log.info("ADVERTISED")
     log.info(self.remote.advertised)
 
