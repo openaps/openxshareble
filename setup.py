@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 setup(name              = 'openxshareble',
-      version           = '0.0.0',
+      version           = '0.0.1',
       author            = 'Ben West',
       author_email      = 'bewest@gmail.com',
       description       = 'Python library for interacting with Dexcom G4 with Share over Bluetooth low energy.',
