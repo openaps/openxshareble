@@ -142,7 +142,6 @@ class App (object):
     """
     Things to do after running the main part of the application.
     """
-
     # Make sure device is disconnected on exit.
     if self.disconnect_on_after and self.remote.is_connected:
       self.remote.disconnect()
