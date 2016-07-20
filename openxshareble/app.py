@@ -131,7 +131,7 @@ class App (object):
         # their name and ID (MAC address on Linux, GUID on OSX).
         new = found - known_uarts
         for device in new:
-            log.info('Found UART: {0} [{1}]'.format(device.name, device.id))
+            log.info('Found UART: {0}'.format(device.id))
         known_uarts.update(new)
         # Sleep for a second and see if new devices have appeared.
         time.sleep(1.0)
