@@ -53,7 +53,8 @@ class App (object):
     except:
         # Make sure device is disconnected on exit.
         if self.disconnect_on_after:
-          self.remote.disconnect()
+          # self.remote.disconnect()
+          print "Not Disconnecting after error"
   def prolog (self, clear_cached_data=True, disconnect_devices=True, scan_devices=True, connect=True, mac=None):
     """
     Things to do before running the main part of the application.
@@ -130,7 +131,7 @@ class App (object):
         # their name and ID (MAC address on Linux, GUID on OSX).
         new = found - known_uarts
         for device in new:
-            log.info('Found UART: {0} [{1}]'.format(device.name, device.id))
+            log.info('Found UART: {0}'.format(device.id))
         known_uarts.update(new)
         # Sleep for a second and see if new devices have appeared.
         time.sleep(1.0)
