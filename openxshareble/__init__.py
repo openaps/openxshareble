@@ -164,9 +164,12 @@ class list_dexcom (BLEUsage):
     receivers = self.enumerate_dexcoms( )
     results = [ ]
     for device in receivers:
-      results.append(dict(name=str(device.name)
-        , mac=str(device.id)
-        , advertised=map(str, device.advertised)))
+      try:
+        results.append(dict(name=str(device.name)
+          , mac=str(device.id)
+          , advertised=map(str, device.advertised)))
+      except UnicodeEncodeError:
+        pass
     return results
 
 class DexcomTask (BLEUsage):
